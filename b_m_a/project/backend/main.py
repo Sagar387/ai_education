@@ -37,9 +37,6 @@ def get_msal_app():
 # Validate the JWT token from Azure AD B2C
 async def validate_token(token: str = Depends(oauth2_scheme)):
     try:
-        # For development/demo purposes only
-        # In production, you should properly validate the token with the issuer's public key
-        # For Azure AD B2C tokens, we'll just decode without verification for this demo
         
         # Use a dummy key for development
         dummy_key = "development_key_not_for_production"
@@ -70,12 +67,6 @@ async def validate_token(token: str = Depends(oauth2_scheme)):
             detail=f"Authentication failed: {str(e)}"
         )
 
-# Demo data - in a real app, this would come from a database
-DEMO_TASKS = [
-    {"id": 1, "title": "Learn FastAPI", "completed": False},
-    {"id": 2, "title": "Implement Azure AD B2C Auth", "completed": False},
-    {"id": 3, "title": "Connect Frontend to Backend", "completed": False},
-]
 
 # Root endpoint - public
 @app.get("/")

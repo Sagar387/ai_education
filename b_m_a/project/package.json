@@ -13,11 +13,14 @@
     "@headlessui/react": "^1.7.18",
     "framer-motion": "^11.0.8",
     "lucide-react": "^0.344.0",
+    "pdfjs-dist": "^5.0.375",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-dropzone": "^14.2.3",
     "react-router-dom": "^6.22.3",
     "react-speech-recognition": "^4.0.0",
-    "react-use-clipboard": "^1.0.9"
+    "react-use-clipboard": "^1.0.9",
+    "regenerator-runtime": "^0.14.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

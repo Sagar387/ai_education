@@ -1,9 +1,10 @@
 # backend/main.py
 import os
-from fastapi import FastAPI, File, UploadFile, HTTPException
+import traceback
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from .pdf_utils import extract_text_from_pdf
+from pdf_utils import extract_text_from_pdf
 from azure_client import summarize_text
 
 app = FastAPI()

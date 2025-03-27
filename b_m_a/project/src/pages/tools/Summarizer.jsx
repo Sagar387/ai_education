@@ -16,45 +16,53 @@ const Summarizer = () => {
       setFile(selectedFile);
 
       if (selectedFile.type === 'text/plain') {
-        // For plain text files, use FileReader to extract text directly.
+        // For plain text files, read the content and send as JSON
         const reader = new FileReader();
         reader.onload = async (e) => {
           const text = e.target.result;
           setIsProcessing(true);
-          try {
-            // Replace this with your call to Azure OpenAI if needed.
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            setSummary(text.slice(0, 200) + '...');
-          } catch (err) {
-            setError('Failed to generate summary. Please try again.');
-          } finally {
-            setIsProcessing(false);
-          }
+          fetch('http://localhost:8000/summarize', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ text }),
+          })
+            .then(response => {
+              if (!response.ok) {
+                throw new Error('Failed to generate summary.');
+              }
+              return response.json();
+            })
+            .then(data => {
+              setSummary(data.summary);
+            })
+            .catch(err => {
+              setError(err.message || 'Failed to generate summary. Please try again.');
+            })
+            .finally(() => setIsProcessing(false));
         };
         reader.readAsText(selectedFile);
       } else if (selectedFile.type === 'application/pdf') {
-        // For PDFs, send the file to your backend endpoint for text extraction.
+        // For PDFs, send the file using FormData
         const formData = new FormData();
         formData.append('file', selectedFile);
         setIsProcessing(true);
-        fetch('/api/extract-text', {
+        fetch('http://localhost:8000/summarize', {
           method: 'POST',
           body: formData,
         })
           .then(response => {
             if (!response.ok) {
-              throw new Error('Failed to extract text from PDF.');
+              throw new Error('Failed to generate summary.');
             }
             return response.json();
           })
-          .then(async (data) => {
-            // data.text should contain the extracted text
-            // Here you could call your summarization API using data.text
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            setSummary(data.text.slice(0, 200) + '...');
+          .then(data => {
+            setSummary(data.summary);
           })
-          .catch((err) => {
-            setError(err.message || 'Failed to extract text from PDF. Please try again.');
+          .catch(err => {
+            setError(err.message || 'Failed to generate summary. Please try again.');
           })
           .finally(() => setIsProcessing(false));
       } else {

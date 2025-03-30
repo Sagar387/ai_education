@@ -14,7 +14,7 @@ const Summarizer = () => {
   const [summary, setSummary] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
-
+  
   // Download summary as a text file
   const handleDownload = () => {
     const blob = new Blob([summary], { type: 'text/plain;charset=utf-8' });
@@ -24,6 +24,28 @@ const Summarizer = () => {
     a.download = "summary.txt";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Function to store the summary in Cosmos DB via your backend API.
+  const storeSummary = async (summaryText, fileName = null, sourceText = null) => {
+    try {
+      const response = await fetch('http://localhost:8000/save_summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName,      // optional, if available
+          summary: summaryText,
+          sourceText     // optional, if available
+        })
+      });
+      if (!response.ok) {
+        throw new Error('Failed to store summary in database.');
+      }
+      // Optionally, you could handle the response here (e.g., display a success message)
+    } catch (err) {
+      console.error(err);
+      // Optionally, update error state or notify the user
+    }
   };
 
   const onDrop = useCallback((acceptedFiles) => {
@@ -53,6 +75,8 @@ const Summarizer = () => {
             })
             .then(data => {
               setSummary(data.summary);
+              // Store summary in the database (include file name and original text if desired)
+              storeSummary(data.summary, selectedFile.name, text);
             })
             .catch(err => {
               setError(err.message || 'Failed to generate summary. Please try again.');
@@ -78,6 +102,9 @@ const Summarizer = () => {
           })
           .then(data => {
             setSummary(data.summary);
+            // For PDFs, you might not have access to the full source text on the client,
+            // but you can store the file name and summary.
+            storeSummary(data.summary, selectedFile.name);
           })
           .catch(err => {
             setError(err.message || 'Failed to generate summary. Please try again.');

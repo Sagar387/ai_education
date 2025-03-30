@@ -1,6 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { FileText, Upload, RefreshCw, Download, Trash2, FileSearch } from 'lucide-react';
+import { 
+  FileText, 
+  Upload, 
+  RefreshCw, 
+  Download, 
+  Trash2, 
+  FileSearch 
+} from 'lucide-react';
 
 const Summarizer = () => {
   const [file, setFile] = useState(null);
@@ -8,15 +15,25 @@ const Summarizer = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
 
+  // Download summary as a text file
+  const handleDownload = () => {
+    const blob = new Blob([summary], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "summary.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const onDrop = useCallback((acceptedFiles) => {
     setError('');
     const selectedFile = acceptedFiles[0];
 
     if (selectedFile) {
       setFile(selectedFile);
-
+      // For text files, read the content and send as JSON.
       if (selectedFile.type === 'text/plain') {
-        // For plain text files, read the content and send as JSON
         const reader = new FileReader();
         reader.onload = async (e) => {
           const text = e.target.result;
@@ -43,8 +60,9 @@ const Summarizer = () => {
             .finally(() => setIsProcessing(false));
         };
         reader.readAsText(selectedFile);
-      } else if (selectedFile.type === 'application/pdf') {
-        // For PDFs, send the file using FormData
+      } 
+      // For PDF files, send the file using FormData.
+      else if (selectedFile.type === 'application/pdf') {
         const formData = new FormData();
         formData.append('file', selectedFile);
         setIsProcessing(true);
@@ -151,6 +169,7 @@ const Summarizer = () => {
                 </button>
                 {summary && (
                   <button
+                    onClick={handleDownload}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
                   >
                     <Download className="h-4 w-4" />
@@ -168,7 +187,9 @@ const Summarizer = () => {
                 </div>
               ) : (
                 <div className="prose max-w-none">
-                  <p className="text-gray-700 leading-relaxed">{summary}</p>
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {summary}
+                  </p>
                 </div>
               )}
             </div>

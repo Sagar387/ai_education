@@ -46,3 +46,13 @@ class SaveQuizAttemptResponse(BaseModel):
     quizId: str
     attemptId: str
     message: str
+
+class FlashcardData(BaseModel):
+    title: str
+    cards: List[Dict[str, str]]
+    resourceName: str
+    options: Dict[str, Any]
+
+class FlashcardDocument(BaseModel):
+    contentType: str
+    data: FlashcardData

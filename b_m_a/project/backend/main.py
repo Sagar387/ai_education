@@ -11,8 +11,8 @@ import msal
 from jose import jwt
 from database import client, container  
 from pdf_utils import extract_text_from_pdf
-from openai_client import generate_quiz
-from models import QuizDocument, SavedQuizResponse, SaveQuizAttemptRequest, SaveQuizAttemptResponse, QuizAttempt
+from openai_client import generate_quiz, generate_flashcards
+from models import QuizDocument, SavedQuizResponse, SaveQuizAttemptRequest, SaveQuizAttemptResponse, QuizAttempt, FlashcardDocument
 
 # Load the environment variables
 load_dotenv()
@@ -329,6 +329,124 @@ async def get_quiz_with_history(quiz_id: str, user_claims: dict = Depends(valida
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="Quiz not found"
+        )
+
+# PDF upload and flashcard generation endpoint - protected
+@app.post("/generate-flashcards")
+async def create_flashcards(
+    file: UploadFile = File(...), 
+    num_cards: Optional[int] = Form(20),
+    focus_topics: Optional[str] = Form(""),
+    user_claims: dict = Depends(validate_token)
+):
+    try:
+        # Save the uploaded file temporarily
+        file_path = f"./temp_{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+        
+        # Extract text from the PDF
+        text = extract_text_from_pdf(file_path)
+        
+        # Validate inputs
+        if num_cards < 10:
+            num_cards = 10
+        elif num_cards > 50:
+            num_cards = 50
+            
+        # Generate flashcards using Azure OpenAI
+        flashcards_json = generate_flashcards(
+            text=text,
+            num_cards=num_cards,
+            focus_topics=focus_topics.strip()
+        )
+        
+        # Clean up the temporary file
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        flashcard_data = json.loads(flashcards_json)
+        
+        # Automatically save the flashcards
+        flashcard_document = {
+            "id": str(uuid.uuid4()),
+            "userId": user_claims["sub"],
+            "contentType": "flashcards",
+            "createdAt": datetime.utcnow().isoformat(),
+            "data": {
+                "title": flashcard_data["title"],
+                "cards": flashcard_data["cards"],
+                "resourceName": file.filename,
+                "options": {
+                    "numCards": num_cards,
+                    "selectedTopics": focus_topics.split(",") if focus_topics else [],
+                    "customTopics": focus_topics
+                }
+            }
+        }
+        
+        # Save to Cosmos DB
+        container.create_item(body=flashcard_document)
+        
+        # Return the flashcard data with the ID
+        flashcard_data["id"] = flashcard_document["id"]
+        return flashcard_data
+    except Exception as e:
+        print(f"Error generating flashcards: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate flashcards: {str(e)}"
+        )
+
+# Save flashcards endpoint - protected 
+@app.post("/save-flashcards", response_model=SavedQuizResponse)
+async def save_flashcards(flashcards: FlashcardDocument, user_claims: dict = Depends(validate_token)):
+    try:
+        # Prepare document for Cosmos DB
+        document = {
+            "id": str(uuid.uuid4()),
+            "userId": user_claims["sub"],  
+            "contentType": flashcards.contentType,
+            "createdAt": datetime.utcnow().isoformat(),
+            "data": flashcards.data.dict()  
+        }
+        
+        # Save to Cosmos DB
+        container.create_item(body=document)
+        return {"id": document["id"], "message": "Flashcards saved successfully"}
+    except Exception as e:
+        print(f"Error saving flashcards: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f"Failed to save flashcards: {str(e)}"
+        )
+
+# Get saved flashcards endpoint - protected
+@app.get("/saved-flashcards")
+async def get_saved_flashcards(user_claims: dict = Depends(validate_token)):
+    try:
+        # Query Cosmos DB for flashcards
+        query = f"""
+        SELECT * FROM c 
+        WHERE c.userId = @userId 
+        AND c.contentType = 'flashcards'
+        ORDER BY c.createdAt DESC
+        """
+        
+        parameters = [{"name": "@userId", "value": user_claims["sub"]}]
+        
+        results = list(container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        ))
+        
+        return results
+    except Exception as e:
+        print(f"Error fetching saved flashcards: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch saved flashcards: {str(e)}"
         )
 
 # Health check endpoint - public

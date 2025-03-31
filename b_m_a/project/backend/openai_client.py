@@ -153,3 +153,68 @@ This structured format will maintain consistency and ensure the generated quizze
     )
     return response.choices[0].message.content
 
+def generate_flashcards(
+    text: str,
+    num_cards: int = 20,
+    focus_topics: str = ""
+):
+    # Add focus topics instruction if provided
+    focus_instruction = ""
+    if focus_topics:
+        focus_instruction = f"\n\n# Focus Areas:\nPay special attention to these topics: {focus_topics}"
+    
+    # Create the system prompt
+    system_prompt = f"""You are an AI flashcard generator that creates flashcards based on input text containing a specific topic. The output will consist of {num_cards} flashcards. The output should be a structured JSON object.{focus_instruction}
+
+---
+
+# Steps:
+- Analyze the input text to extract key concepts, definitions, and important details
+- Generate clear, concise flashcards that cover the main points
+- Ensure questions are focused and answers are accurate and comprehensive
+- Generate exactly {num_cards} flashcards
+- Vary the difficulty and complexity of the cards
+
+---
+
+# Output Format:
+
+Return a JSON object structured as follows:
+
+{{
+  "title": "[Generated Title Based on the Topic]",
+  "cards": [
+    {{
+      "question": "[Clear, concise question]",
+      "answer": "[Comprehensive answer with key details]"
+    }},
+    // ... more cards ...
+  ]
+}}
+
+### Field Explanation:
+- **title**: A concise, topic-relevant title for the flashcard set
+- **question**: A clear, focused question that tests understanding
+- **answer**: A comprehensive answer that includes key details and explanations
+
+---
+
+# Notes:
+- Focus on generating cards that reflect critical concepts from the given text
+- Ensure clarity and correctness in both questions and answers
+- Make questions specific and focused
+- Provide detailed answers that explain the concept thoroughly
+- Avoid ambiguity in both questions and answers
+
+This structured format will maintain consistency and ensure the generated flashcards are high-quality and effective for learning."""
+
+    response = client.chat.completions.create(
+        model=DEPLOYMENT_NAME,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Generate flashcards from the following text:\n\n{text}"}
+        ],
+        response_format={"type": "json_object"}
+    )
+    return response.choices[0].message.content
+
